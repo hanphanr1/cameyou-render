@@ -367,7 +367,7 @@ app.post('/shutdown', async (req, res) => {
 async function main() {
     await launchBrowser();
     const exePath = findChrome();
-    app.listen(PORT, '127.0.0.1', () => {
+    app.listen(PORT, process.env.HOST || '0.0.0.0', () => {
         console.log(`cameyou solver | pool=${POOL_SIZE} | proxy=${GATEWAY ? GATEWAY.server : 'direct'} | chrome=${exePath ? 'found' : 'channel'} | GET :${PORT}/solve`);
     });
 }
