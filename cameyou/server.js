@@ -165,6 +165,7 @@ async function newSolveCtx() {
 }
 
 async function dropCtx(ctx) {
+    if (ctx && ctx.__override) { await ctx.close().catch(() => {}); return; }   // ctx proxy rieng: close
     if (GATEWAY) { await ctx.close().catch(() => {}); return; }
     try {
         if (ctx && ctx.browser() && ctx.browser().isConnected()) {
@@ -173,6 +174,19 @@ async function dropCtx(ctx) {
             return;
         }
     } catch {}
+}
+
+// ---- per-request proxy (cho checker multi-egress: castle token phai mint
+// cung egress voi request dung no). override la URL proxy day du
+// http://user:pass@ip:port; context override luon close, khong tra ve pool. ----
+function _ctxIsOverride(ctx) { return ctx && ctx.__override === true; }
+
+async function newCtxWithProxy(proxyUrl) {
+    await ensureBrowser();
+    const proxy = parseProxy(proxyUrl);
+    const ctx = await browser.newContext({ viewport: null, proxy });
+    ctx.__override = true;
+    return ctx;
 }
 
 
@@ -260,10 +274,10 @@ async function solve(siteUrl, siteKey, timeout = TIMEOUT) {
     }
 }
 
-async function mintCastle(pk, timeout = 15) {
+async function mintCastle(pk, timeout = 15, proxyUrl = '') {
     if (!CASTLE_JS.length) return { success: false, err: 'castle.browser.js missing' };
     const t0 = Date.now();
-    const ctx = await newSolveCtx();
+    const ctx = proxyUrl ? await newCtxWithProxy(proxyUrl) : await newSolveCtx();
     const pg = await ctx.newPage();
     const siteUrl = 'https://accounts.x.ai/sign-in?redirect=grok-com&email=true';
     const html = buildCastlePage(pk || CASTLE_PK_DEFAULT);
@@ -328,10 +342,12 @@ app.get('/solve', async (req, res) => {
 });
 
 app.get('/castle', async (req, res) => {
-    const { pk, timeout } = req.query;
+    // proxy (optional): URL day du http://user:pass@ip:port — mint qua egress nay
+    // (Castle bind token theo IP mint; checker truyen proxy dang dung cho login).
+    const { pk, timeout, proxy } = req.query;
     await solveSem.acquire();
     try {
-        res.json(await mintCastle(pk, timeout ? parseFloat(timeout) : 15));
+        res.json(await mintCastle(pk, timeout ? parseFloat(timeout) : 15, proxy || ''));
     } catch (e) {
         res.status(500).json({ success: false, err: e.message });
     } finally {
