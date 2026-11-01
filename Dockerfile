@@ -1,6 +1,5 @@
 # cameyou-render — Castle/Captcha minter (cameyou solver) cho Render, real Chrome headful
-# duoi Xvfb. Base copy nguyen van tu turntitle-render (da chay that tren Render);
-# doi phan cuoi: COPY cameyou + npm ci + CHROME_PATH + CAMEYOU_PORT=$PORT.
+# duoi Xvfb. Base copy nguyen van tu turntitle-render (da chay that tren Render).
 FROM node:22-bookworm-slim AS node-dist
 
 FROM debian:bookworm-slim
@@ -38,10 +37,13 @@ WORKDIR /app
 COPY cameyou/package*.json ./
 RUN npm ci --omit=dev
 
-COPY cameyou/server.js cameyou/castle.browser.js ./
+COPY cameyou/server.js cameyou/castle.browser.js entrypoint.sh ./
+RUN chmod +x entrypoint.sh
 
 EXPOSE 6767
 
-# dumb-init PID 1; Xvfb :99 roi exec node (CAMEYOU_PORT theo $PORT cua Render).
+# dumb-init PID 1 -> entrypoint.sh (Xvfb :99 + doi socket + exec node,
+# CAMEYOU_PORT theo $PORT cua Render). Xoa /tmp/.X99-lock truoc khi start
+# de khong bi "Server is already active" khi Render restart instance.
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "Xvfb :99 -screen 0 1536x864x24 -nolisten tcp & sleep 1; CAMEYOU_PORT=${PORT:-6767} node server.js"]
+CMD ["./entrypoint.sh"]
