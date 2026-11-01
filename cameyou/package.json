@@ -1,0 +1,13 @@
+{
+  "name": "cameyou",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.51.1",
+    "express": "^4.18.0",
+    "rebrowser-playwright": "^1.51.1"
+  }
+}
